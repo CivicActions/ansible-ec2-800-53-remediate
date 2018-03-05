@@ -1,0 +1,6 @@
+---
+scap_reports_dir: "/opt/ansible/scap_reports"
+scan_only: "false"
+scandate: "{{ lookup('pipe','date +%Y-%m-%d') }}"
+scanprefix: "{{ scandate }}.{{ inventory_hostname }}.ssg"
+oscap_output_dir: "/opt/scap"

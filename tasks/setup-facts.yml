@@ -1,0 +1,43 @@
+# Variables
+
+- name: Set CentOS 6 variables
+  set_fact:
+    scapprofile: xccdf_org.ssgproject.content_profile_stig-rhel6-server-upstream
+    scapdatastream: ssg-centos6-ds.xml
+  when: ansible_distribution == "CentOS" and ansible_distribution_major_version == "6"
+- name: Set CentOS 7 variables
+  set_fact:
+    scapprofile: xccdf_org.ssgproject.content_profile_stig-rhel7-disa
+    scapdatastream: ssg-centos7-ds.xml
+  when: ansible_distribution == "CentOS" and ansible_distribution_major_version == "7"
+- name: Set RHEL 6 variables
+  set_fact:
+    scapprofile: xccdf_org.ssgproject.content_profile_stig-rhel6-server-upstream
+    scapdatastream: ssg-rhel6-ds.xml
+  when: ansible_distribution == "RedHat" and ansible_distribution_major_version == "6"
+- name: Set RHEL 7 variables
+  set_fact:
+    scapprofile: xccdf_org.ssgproject.content_profile_stig-rhel7-disa
+    scapdatastream: ssg-rhel7-ds.xml
+  when: ansible_distribution == "RedHat" and ansible_distribution_major_version == "7"
+- debug:
+    msg: "profile is {{ scapprofile }} and datastream is {{ scapdatastream }}"
+
+- name: Create oscap output directory if it doesn't exist
+  file:
+    path: '{{ oscap_output_dir }}'
+    state: directory
+    mode: 0755
+
+- name: Set oscap variables
+  set_fact:
+    # Location of remediation script
+    oscap_remediation_script: '{{ oscap_output_dir  }}/{{ scanprefix }}-remediation-script.sh'
+
+- name: Set oscap commands
+  set_fact:
+    # Command to scan only
+    oscap_scan: 'oscap xccdf eval --profile {{ scapprofile }} --results-arf {{ oscap_output_dir }}/{{ scanprefix }}-results-arf.xml --report {{ oscap_output_dir }}/{{ scanprefix }}-report.html /usr/share/xml/scap/ssg/content/{{ scapdatastream }}'
+    # Command to generate fix script
+    oscap_generate_fix: 'oscap xccdf generate fix --template urn:xccdf:fix:script:sh --profile {{ scapprofile }} --output {{ oscap_remediation_script }} /usr/share/xml/scap/ssg/content/{{ scapdatastream }}'
+

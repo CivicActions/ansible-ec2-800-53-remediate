@@ -1,0 +1,48 @@
+# First, update all software
+- name: Upgrade all packages, including kernel related packages
+  yum: name='*' state='latest'
+  async: 900
+
+# System and Software Integrity : Software Integrity Checking : Verify Integrity with AIDE
+- name: Configure Notification of Post-AIDE Scan Details
+  cron:
+    name: "AIDE scan"
+    minute: "0"
+    hour: "5"
+    job: "/usr/sbin/aide --check | /bin/mail -s \"$(hostname) - AIDE Integrity Check\" root@localhost"
+    cron_file: /etc/crontab
+    user: root
+
+# Network Configuration and Firewalls : firewalld
+- name: Install firewalld
+  yum: name='firewalld' state='latest'
+- name: Enable service firewalld
+  service: name="firewalld" enabled="yes" state="started"
+- name: Set Default firewalld Zone for Incoming Packets
+  lineinfile: dest=/etc/firewalld/firewalld.conf regexp="^DefaultZone" line="DefaultZone=drop"
+- name: Enable passthrough for needed ports
+  firewalld: service="{{ item }}" state=enabled zone=drop permanent=true
+  with_items:
+    - ssh
+    - http
+    - ntp
+    - dns
+    - https
+    - mysql
+    - rsyncd
+
+# Network Configuration and Firewalls : IPSec Support
+- name: Configure Multiple DNS Servers in /etc/resolv.conf
+  lineinfile: path="/etc/resolv.conf" line="nameserver 8.8.8.8"
+
+# Configure Syslog : Rsyslog Logs Sent To Remote Host
+- name: Ensure Logs Sent To Remote Host
+  debug: msg="@@todo"
+
+# System Accounting with auditd
+
+# Services : Network Time Protocol
+- name: Install Network Time Protocol
+  yum: name='ntp' state='latest'
+- name: Configure NTP Maxpoll Interval
+  lineinfile: path="/etc/ntp.conf" line="maxpoll 17"

@@ -1,0 +1,73 @@
+# Hardening, Open SCAP scanning, and remediation tasks.
+
+- import_tasks: setup-facts.yml
+
+- name: Install Open SCAP scanner and Security Guide, and aide
+  yum:
+    name: openscap-scanner,scap-security-guide,aide
+    state: latest
+
+- name: Initial SCAP Scan before remediation
+  block:
+   - name: Initial SCAP Scan
+     command: '{{ oscap_scan }}'
+     async: 1800
+     ignore_errors: true
+   - name: Download pre-remediated report
+     fetch: src='{{ oscap_output_dir }}/{{ scanprefix }}-{{ item }}' dest='{{ scap_reports_dir }}/initial/' flat='yes'
+     with_items:
+      - 'report.html'
+      - 'results-arf.xml'
+  when: scan_only == "false"
+
+- name: SCAP Generate Fix and run remediation
+  block:
+  - name: Generate fix script
+    command: '{{ oscap_generate_fix }}'
+    async: 1800
+    ignore_errors: true
+  - name: Download remediation script
+    fetch: src='{{ oscap_remediation_script }}' dest='{{ scap_reports_dir }}/initial'
+  - name: SCAP Run remediation script
+    shell: '{{ oscap_remediation_script }} > {{ oscap_output_dir }}/remediation-output.txt'
+    executable: /usr/bin/bash
+    async: 1800
+    ignore_errors: true
+  - name: Download remediation output
+    fetch: src='{{ oscap_output_dir }}/remediation-output.txt' dest='{{ scap_reports_dir }}/initial'
+  when: scan_only == "false"
+
+- import_tasks: remediations.yml
+  when: scan_only == "false"
+
+- name: Remove dracut-fips so we can reboot and because we do not need it
+  block:
+  - name: Remove dracut-fips packages
+    yum: name='dracut-fips' state=absent
+  - name: Remove fips config in grub
+    replace:
+      path: /etc/default/grub
+      regexp: ' fips=1'
+  - name: Fix grub
+    command: '/sbin/grubby --update-kernel=ALL --remove-args="fips=1"'
+  when: scan_only == "false"
+
+- name: Reboot server
+  block:
+  - name: Reboot
+    shell: sleep 2 && shutdown -r now "Ansible reboot triggered"
+    async: 1
+    poll: 0
+  - name: Wait for restart
+    local_action: wait_for host="{{ public_ip }}" port=22 search_regex=OpenSSH delay=10 timeout=300
+  when: scan_only == "false"
+
+- name: SCAP post-reboot scan after remediations
+  command: '{{ oscap_scan }}'
+  async: 1800
+  ignore_errors: true
+- name: Download rebooted report
+  fetch: src='{{ oscap_output_dir }}/{{ scanprefix }}-{{ item }}' dest='{{ scap_reports_dir }}/' flat='yes'
+  with_items:
+    - 'report.html'
+    - 'results.xml'

@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: David Numan
+  description: Run OpenSCAP scans and remediations
+  company: CivicActions
+  license: BSD
+  min_ansible_version: 2.2
+  platforms:
+  - name: EL
+    versions:
+    - 6
+    - 7
+  galaxy_tags:
+    - system
